@@ -1,0 +1,12 @@
+# Users for JWT login. Generate hashes with:  ash hash-password '<password>'
+# Never commit real credentials; mount this file or use your IdP in front of the API.
+users:
+  - username: analyst1
+    password_hash: "pbkdf2$ufeIpz0tM/psYHsgOW4oPw==$p0yyrdyXyojFyw8kOt/VFR1RblevHhUYsGOq+Ga6bbE="     # ChangeMe-Analyst1
+    roles: [analyst]
+  - username: lead1
+    password_hash: "pbkdf2$x2l50NPeS5M8GV9d7/i84g==$kAgmvqVZIDEhrcLvW0yQ2Q0RkTu1oLcCSPkBiMlg5b0="     # ChangeMe-Lead1
+    roles: [soc_lead]
+  - username: auditor1
+    password_hash: "pbkdf2$CGNEyEH6eWjzToeoSxNMwg==$1GGFM4vUiT5XJ2MnKrz2NdfcjKHAMUtiDida/E6X8d8="     # ChangeMe-Auditor1
+    roles: [auditor]

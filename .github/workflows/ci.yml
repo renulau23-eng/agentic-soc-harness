@@ -1,0 +1,66 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Lint
+        run: ruff check ash tests scripts && ruff format --check ash tests scripts
+      - name: Test (offline, no network)
+        run: pytest -q --cov=ash --cov-report=term --cov-fail-under=85
+      - name: End-to-end demo (offline playbook model)
+        run: python -m scripts.demo --quiet || python -m scripts.demo
+
+  postgres-integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ash
+          POSTGRES_PASSWORD: ash
+          POSTGRES_DB: ash
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ash" --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e ".[dev,postgres]"
+      - name: Demo against PostgreSQL
+        env:
+          ASH_DATABASE_URL: postgresql+psycopg://ash:ash@localhost:5432/ash
+        run: python -m scripts.demo_pg
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t agentic-soc-harness:ci .
+      - name: Smoke test container
+        run: |
+          docker run -d --name ash -p 8080:8080 \
+            -e ASH_JWT_SECRET=ci-secret-ci-secret-ci-secret-ci-secret \
+            -e ASH_MODEL_REASONING_PROVIDER=mock \
+            agentic-soc-harness:ci
+          for i in $(seq 1 30); do curl -sf http://localhost:8080/health && break; sleep 1; done
+          curl -sf http://localhost:8080/ready
+          docker logs ash | tail -20

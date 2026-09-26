@@ -1,0 +1,44 @@
+# Production-shaped local stack: API + PostgreSQL. Bring your own inference
+# endpoint (NIM / vLLM) and point ASH_MODEL_REASONING_BASE_URL at it, or keep
+# the offline playbook model for a no-GPU smoke test.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ash
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ash}
+      POSTGRES_DB: ash
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ash"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASH_ENVIRONMENT: production
+      ASH_DATABASE_URL: postgresql+psycopg://ash:${POSTGRES_PASSWORD:-ash}@postgres:5432/ash
+      ASH_JWT_SECRET: ${ASH_JWT_SECRET:?set ASH_JWT_SECRET (32+ random bytes)}
+      ASH_USERS_FILE: /app/config/users.example.yaml
+      ASH_API_KEYS: ${ASH_API_KEYS:-siem-ingest-key-change-me:siem:service}
+      ASH_POLICY_FILE: /app/config/policy.yaml
+      ASH_DEFAULT_MODEL_PROFILE: reasoning
+      # Offline default; override with nemotron/sovereign + base_url for real inference.
+      ASH_MODEL_REASONING_PROVIDER: ${ASH_MODEL_REASONING_PROVIDER:-mock}
+      ASH_MODEL_REASONING_MODEL: ${ASH_MODEL_REASONING_MODEL:-soc-playbook}
+      ASH_MODEL_REASONING_BASE_URL: ${ASH_MODEL_REASONING_BASE_URL:-}
+      ASH_MODEL_REASONING_API_KEY: ${ASH_MODEL_REASONING_API_KEY:-}
+      ASH_GUARDRAIL_WEBHOOK_URL: ${ASH_GUARDRAIL_WEBHOOK_URL:-}
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+volumes:
+  pgdata:

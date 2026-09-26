@@ -1,0 +1,50 @@
+# Agentic SOC Harness — tool policy
+#
+# Evaluation: explicit rules (first match wins) → RBAC gate → tier defaults.
+# An ALLOW rule never grants more than RBAC allows. Principals lacking a
+# tool's permission are escalated to human approval, not silently denied.
+
+escalate_on_missing_permission: true
+
+tier_defaults:
+  low: allow
+  medium: allow
+  high: require_approval
+  critical: require_approval
+
+rules:
+  # Releasing a host from isolation is never automated, whatever the role.
+  - name: never-auto-release
+    decision: deny
+    tools: ["release_host"]
+    reason: "Release from isolation is a manual IR-manager action outside the harness."
+
+  # Triage agents must never reach containment tools, even if allow-listed by mistake.
+  - name: triage-no-containment
+    decision: deny
+    agents: ["triage"]
+    min_tier: high
+    reason: "Triage agents are read-only."
+
+  # SOC leads running a workflow interactively may auto-execute HIGH tools.
+  # (Uncomment for mature SOCs; default keeps a human gate on every HIGH action.)
+  # - name: soc-lead-auto-high
+  #   decision: allow
+  #   roles: ["soc_lead"]
+  #   tiers: [high]
+  #   reason: "SOC lead is accountable for containment."
+
+# Extra or overridden RBAC roles (permissions are dotted strings; globs allowed).
+roles:
+  ir_manager:
+    - agents:read
+    - agents:run
+    - tools:read
+    - cases:read
+    - cases:write
+    - alerts:ingest
+    - approvals:read
+    - approvals:decide
+    - tools:execute:*
+    - audit:read
+    - audit:verify

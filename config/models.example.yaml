@@ -1,0 +1,47 @@
+# Model profiles. Agents ask for a profile name; operators decide what serves it.
+# Environment variables ASH_MODEL_<PROFILE>_* override entries here.
+#
+# Every provider speaks the OpenAI /v1/chat/completions contract, so any of
+# NVIDIA NIM, vLLM, TGI, llama.cpp-server or the CoE sovereign inference
+# service can back a profile without code changes.
+
+models:
+  # Primary reasoning model — Nemotron 3 Super on a local NIM (air-gapped).
+  - name: reasoning
+    provider: nemotron
+    model: nvidia/nemotron-3-super-120b-a12b
+    base_url: http://nim.soc.local:8000/v1
+    reasoning: true          # injects /think into the system prompt
+    temperature: 0.1
+    max_tokens: 4096
+    timeout_s: 180
+
+  # Fast, low-latency model for triage and classification — Nemotron 3 Nano on vLLM.
+  - name: fast
+    provider: nemotron
+    model: nvidia/nemotron-3-nano-30b-a3b
+    base_url: http://vllm.soc.local:8000/v1
+    reasoning: false         # injects /no_think
+    temperature: 0.0
+    max_tokens: 2048
+
+  # CoE Nemotron-30B with SOC LoRA adapters (Track A sovereign offer).
+  - name: soc_adapter
+    provider: sovereign
+    model: coe/nemotron-30b-soc-lora
+    base_url: http://sovereign.soc.local:8000/v1
+    reasoning: true
+    extra:
+      system_preamble: "[COE-SOC-ADAPTER v1]"
+
+  # Ground-up Sovereign 7B (Track B) — same slot, swap when ready.
+  - name: sovereign
+    provider: sovereign
+    model: coe/sovereign-7b-soc
+    base_url: http://sovereign7b.soc.local:8000/v1
+    reasoning: false
+
+  # Offline deterministic playbook model — CI, air-gapped smoke tests, demos.
+  - name: offline
+    provider: mock
+    model: soc-playbook
