@@ -32,8 +32,7 @@ class ExternalAgentApplication:
         return decorator
 
     def health(self) -> dict[str, Any]:
-        return {"status": "healthy", "name": self.name, "version": self.version,
-                "capabilities": sorted(self.handlers)}
+        return {"status": "healthy", "name": self.name, "version": self.version, "capabilities": sorted(self.handlers)}
 
     def execute(self, request: ExecutionRequest, authorization: str | None = Header(default=None)) -> ExecutionResult:
         if self.bearer_token and authorization != f"Bearer {self.bearer_token}":
@@ -42,18 +41,18 @@ class ExternalAgentApplication:
         if not handler:
             raise HTTPException(status_code=422, detail=f"unsupported capability {request.capability}")
         result = handler(request)
-        return result if isinstance(result, ExecutionResult) else ExecutionResult(
-            invocation_id=request.invocation_id, **result
+        return (
+            result
+            if isinstance(result, ExecutionResult)
+            else ExecutionResult(invocation_id=request.invocation_id, **result)
         )
 
-    def mcp(self, body: dict[str, Any]) -> dict[str, Any]:
+    def mcp(self, body: dict[str, Any], authorization: str | None = Header(default=None)) -> dict[str, Any]:
         params = body.get("params", {})
         if body.get("method") != "tools/call" or params.get("name") != "execute_security_agent":
-            return {"jsonrpc": "2.0", "id": body.get("id"),
-                    "error": {"code": -32601, "message": "method not found"}}
-        result = self.execute(ExecutionRequest.model_validate(params.get("arguments", {})))
-        return {"jsonrpc": "2.0", "id": body.get("id"),
-                "result": {"structuredContent": result.model_dump(mode="json")}}
+            return {"jsonrpc": "2.0", "id": body.get("id"), "error": {"code": -32601, "message": "method not found"}}
+        result = self.execute(ExecutionRequest.model_validate(params.get("arguments", {})), authorization)
+        return {"jsonrpc": "2.0", "id": body.get("id"), "result": {"structuredContent": result.model_dump(mode="json")}}
 
 
 class ControlPlaneClient:

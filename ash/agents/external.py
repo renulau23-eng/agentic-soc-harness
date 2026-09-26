@@ -313,8 +313,12 @@ class ExternalAgentRuntime:
                 raise ValueError("OAuth client credentials are incomplete")
             response = httpx.post(
                 auth.token_url,
-                data={"grant_type": "client_credentials", "client_id": auth.client_id,
-                      "client_secret": secret, "audience": auth.audience or ""},
+                data={
+                    "grant_type": "client_credentials",
+                    "client_id": auth.client_id,
+                    "client_secret": secret,
+                    "audience": auth.audience or "",
+                },
                 timeout=10,
             )
             response.raise_for_status()
@@ -351,9 +355,7 @@ class ExternalAgentRuntime:
             request.callback_url = request.callback_url.replace("{id}", request.invocation_id)
             with self.db.session() as session:
                 existing = session.scalar(
-                    select(ExternalAgentInvocationRow).where(
-                        ExternalAgentInvocationRow.idempotency_key == scoped_key
-                    )
+                    select(ExternalAgentInvocationRow).where(ExternalAgentInvocationRow.idempotency_key == scoped_key)
                 )
                 if existing:
                     rows.append(existing)
@@ -417,8 +419,12 @@ class ExternalAgentRuntime:
                     response.raise_for_status()
                     result = ExecutionResult.model_validate(response.json())
             elif agent.transport == "mcp":
-                payload = {"jsonrpc": "2.0", "id": invocation.id, "method": "tools/call",
-                           "params": {"name": "execute_security_agent", "arguments": request.model_dump(mode="json")}}
+                payload = {
+                    "jsonrpc": "2.0",
+                    "id": invocation.id,
+                    "method": "tools/call",
+                    "params": {"name": "execute_security_agent", "arguments": request.model_dump(mode="json")},
+                }
                 with self._client(agent) as client:
                     response = client.post(agent.endpoint, json=payload, headers=self._headers(agent))
                     response.raise_for_status()
@@ -516,8 +522,5 @@ class ExternalAgentRuntime:
 
 
 def external_row(row: Any) -> dict[str, Any]:
-    data = {
-        attr.columns[0].name: getattr(row, attr.key)
-        for attr in inspect(row).mapper.column_attrs
-    }
+    data = {attr.columns[0].name: getattr(row, attr.key) for attr in inspect(row).mapper.column_attrs}
     return {k: v.isoformat() if hasattr(v, "isoformat") else v for k, v in data.items()}

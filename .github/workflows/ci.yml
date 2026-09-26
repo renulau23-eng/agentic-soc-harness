@@ -57,10 +57,12 @@ jobs:
         run: docker build -t agentic-soc-harness:ci .
       - name: Smoke test container
         run: |
+          trap 'docker logs ash' EXIT
           docker run -d --name ash -p 8080:8080 \
             -e ASH_JWT_SECRET=ci-secret-ci-secret-ci-secret-ci-secret \
             -e ASH_MODEL_REASONING_PROVIDER=mock \
             agentic-soc-harness:ci
           for i in $(seq 1 30); do curl -sf http://localhost:8080/health && break; sleep 1; done
           curl -sf http://localhost:8080/ready
-          docker logs ash | tail -20
+          curl -sf http://localhost:8080/ > /dev/null
+          curl -sf http://localhost:8080/assets/app.js > /dev/null

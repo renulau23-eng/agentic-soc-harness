@@ -11,13 +11,13 @@
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand"><span class="brand-mark">A</span><div><strong>ASH</strong><small>Agentic SOC control plane</small></div></div>
-      <div class="tenant"><span>WORKSPACE</span><strong>Enterprise SOC</strong><small>Production control plane</small></div>
+      <div class="tenant"><span>WORKSPACE</span><strong>Enterprise SOC</strong><small>Governed operations workspace</small></div>
       <nav aria-label="Primary">
-        <button class="nav-item active" data-view="overview"><span>01</span>Command center</button>
-        <button class="nav-item" data-view="cases"><span>02</span>Investigations<b id="caseCountNav">0</b></button>
-        <button class="nav-item" data-view="agents"><span>03</span>Agent registry<b id="agentCountNav">0</b></button>
-        <button class="nav-item" data-view="invocations"><span>04</span>Invocations</button>
-        <button class="nav-item" data-view="governance"><span>05</span>Governance<b id="approvalCountNav">0</b></button>
+        <button class="nav-item active" data-view="overview"><span>◈</span>Command center</button>
+        <button class="nav-item" data-view="cases"><span>⊞</span>Investigations<b id="caseCountNav">0</b></button>
+        <button class="nav-item" data-view="agents"><span>⌘</span>Agent registry<b id="agentCountNav">0</b></button>
+        <button class="nav-item" data-view="invocations"><span>⇄</span>Invocations</button>
+        <button class="nav-item" data-view="governance"><span>◎</span>Governance<b id="approvalCountNav">0</b></button>
       </nav>
       <div class="sidebar-foot">
         <div class="system-state"><i id="systemDot"></i><div><strong id="systemLabel">Connecting</strong><small id="systemDetail">Checking control plane</small></div></div>
@@ -28,7 +28,7 @@
     <main>
       <header class="topbar">
         <div><p class="eyebrow">SECURITY OPERATIONS / <span id="crumb">COMMAND CENTER</span></p><h1 id="pageTitle">Command center</h1></div>
-        <div class="top-actions"><span class="live"><i></i>LIVE</span><small id="lastSync">Not synchronized</small><button class="icon-button" id="refreshButton" title="Refresh data" aria-label="Refresh data">↻</button><button class="button primary" id="primaryAction">Ingest alert</button></div>
+        <div class="top-actions"><button class="button secondary" id="logoutButton" hidden>Sign out</button><span class="live"><i></i>LIVE</span><small id="lastSync">Not synchronized</small><button class="icon-button" id="refreshButton" title="Refresh data" aria-label="Refresh data">↻</button><button class="button primary" id="primaryAction">Ingest alert</button></div>
       </header>
 
       <section class="login-layer" id="loginLayer">
@@ -41,13 +41,15 @@
         </div>
       </section>
 
-      <div id="workspace" hidden>
-        <section class="status-strip"><div><i class="good"></i><span>Data fabric</span><strong>Connected</strong></div><div><span>Protocol</span><strong>Agent 1.0</strong></div><div><span>Execution</span><strong id="executionMode">Durable</strong></div><div><span>Environment</span><strong id="environment">—</strong></div></section>
+      <div id="workspace" hidden><div id="dataNotice" role="status" hidden></div>
+        <section class="status-strip"><div><i class="good"></i><span>API readiness</span><strong id="readinessLabel">Checking</strong></div><div><span>Protocol</span><strong>Agent 1.0</strong></div><div><span>Execution</span><strong id="executionMode">Governed</strong></div><div><span>Environment</span><strong id="environment">—</strong></div></section>
 
         <section class="view active" id="overviewView">
+          <section class="hero"><div><p class="eyebrow">YOUR OPERATIONS, IN FOCUS</p><h2>Clarity at every<br>decision point.</h2><p>From signal to response. One governed workspace.</p><div class="hero-links"><button class="button primary" data-go="cases">Explore investigations ↗</button><span id="heroSummary">Synchronizing your workspace</span></div></div><div class="orbit" aria-hidden="true"><div class="orbit-ring r1"></div><div class="orbit-ring r2"></div><div class="orbit-ring r3"></div><span class="orbit-core">A<span>ASH RUNTIME</span></span><span class="orbit-label ol1">DETECT</span><span class="orbit-label ol2">INVESTIGATE</span><span class="orbit-label ol3">RESPOND</span><i class="satellite s1"></i><i class="satellite s2"></i></div></section>
+          <div class="section-heading"><h2>Operational overview</h2><span>Current snapshot · up to 200 recent cases</span></div>
           <div class="metric-grid" id="metricGrid"></div>
           <div class="overview-grid">
-            <section class="panel queue-panel"><div class="panel-head"><div><p class="eyebrow">ACTIVE OPERATIONS</p><h2>Investigation queue</h2></div><button class="text-button" data-go="cases">View all →</button></div><div class="table-tools"><input id="overviewSearch" placeholder="Search title, ID, severity"><span class="stream"><i></i>Streaming</span></div><div class="table-wrap" id="recentCases"></div></section>
+            <section class="panel queue-panel"><div class="panel-head"><div><p class="eyebrow">ACTIVE OPERATIONS</p><h2>Investigation queue</h2></div><button class="text-button" data-go="cases">View all →</button></div><div class="table-tools"><input aria-label="Search investigations" id="overviewSearch" placeholder="Search title, ID, severity"><span class="stream"><i></i>30s refresh</span></div><div class="table-wrap" id="recentCases"></div></section>
             <div class="right-column">
               <section class="panel posture"><div class="panel-head"><div><p class="eyebrow">SECURITY POSTURE</p><h2>Workload distribution</h2></div><span class="quiet-badge">CURRENT</span></div><div id="postureChart"></div></section>
               <section class="panel"><div class="panel-head"><div><p class="eyebrow">HUMAN IN THE LOOP</p><h2>Decision queue</h2></div><span class="count" id="approvalCount">0</span></div><div id="approvalPreview"></div></section>
@@ -58,7 +60,7 @@
 
         <section class="view" id="casesView">
           <div class="view-head"><div><p class="eyebrow">CASE MANAGEMENT</p><h2>Investigations</h2><p>Durable cases created from security detections and governed agent workflows.</p></div><button class="button primary" data-action="ingest">Ingest alert</button></div>
-          <section class="panel wide"><div class="table-tools"><input id="caseSearch" placeholder="Filter cases"><select id="caseStatus"><option value="">All states</option><option>new</option><option>investigating</option><option>awaiting_approval</option><option>contained</option><option>resolved</option></select></div><div class="table-wrap" id="caseTable"></div></section>
+          <section class="panel wide"><div class="table-tools"><input aria-label="Filter cases" id="caseSearch" placeholder="Filter cases"><select aria-label="Case status" id="caseStatus"><option value="">All states</option><option>new</option><option>investigating</option><option>awaiting_approval</option><option>contained</option><option>resolved</option><option>triaged</option><option>closed</option><option value="false_positive">false positive</option></select></div><div class="table-wrap" id="caseTable"></div></section>
         </section>
 
         <section class="view" id="agentsView">
@@ -68,7 +70,7 @@
 
         <section class="view" id="invocationsView">
           <div class="view-head"><div><p class="eyebrow">DISTRIBUTED EXECUTION</p><h2>Invocation ledger</h2><p>Idempotent requests, callbacks, latency, retries, and terminal results.</p></div><button class="button primary" id="dispatchButton">Dispatch work</button></div>
-          <section class="panel wide"><div class="table-tools"><input id="invocationSearch" placeholder="Search invocation, capability, agent"><select id="invocationStatus"><option value="">All states</option><option>queued</option><option>running</option><option>accepted</option><option>completed</option><option>failed</option></select></div><div class="table-wrap" id="invocationTable"></div></section>
+          <section class="panel wide"><div class="table-tools"><input aria-label="Search invocations" id="invocationSearch" placeholder="Search invocation, capability, agent"><select aria-label="Invocation status" id="invocationStatus"><option value="">All states</option><option>queued</option><option>running</option><option>accepted</option><option>completed</option><option>failed</option></select></div><div class="table-wrap" id="invocationTable"></div></section>
         </section>
 
         <section class="view" id="governanceView">
@@ -79,13 +81,14 @@
     </main>
   </div>
 
-  <dialog id="alertDialog"><form id="alertForm"><div class="dialog-head"><div><p class="eyebrow">MANUAL INGESTION</p><h2>Create a security case</h2></div><button type="button" class="icon-button close" data-close="alertDialog">×</button></div><label>Alert title<input name="title" required value="Suspicious privileged sign-in"></label><div class="form-row"><label>Source<select name="source"><option>siem</option><option>edr</option><option>iam</option><option>cloud</option></select></label><label>Severity<select name="severity"><option>medium</option><option>high</option><option>critical</option><option>low</option></select></label></div><label>Asset ID<input name="asset_id" value="host-fin-042"></label><label>Indicators<input name="indicators" value="185.220.101.45, suspicious.example"></label><label>Description<textarea name="description" rows="3">Operator-submitted detection for governed triage.</textarea></label><div class="dialog-actions"><button type="button" class="button secondary" data-close="alertDialog">Cancel</button><button class="button primary">Ingest alert</button></div></form></dialog>
+  <dialog id="alertDialog"><form id="alertForm"><div class="dialog-head"><div><p class="eyebrow">MANUAL INGESTION</p><h2>Create a security case</h2></div><button type="button" class="icon-button close" data-close="alertDialog">×</button></div><label>Alert title<input name="title" required value="Suspicious privileged sign-in"></label><div class="form-row"><label>Source<select name="source"><option>data-fabric</option><option>siem</option><option>edr</option><option>iam</option><option>cloud</option></select></label><label>Severity<select name="severity"><option>medium</option><option>high</option><option>critical</option><option>low</option></select></label></div><label>Asset ID<input name="asset_id" value="host-fin-042"></label><label>Indicators<input name="indicators" value="185.220.101.45, suspicious.example"></label><label>Description<textarea name="description" rows="3">Operator-submitted detection for governed triage.</textarea></label><div class="dialog-actions"><button type="button" class="button secondary" data-close="alertDialog">Cancel</button><button class="button primary">Ingest alert</button></div></form></dialog>
 
   <dialog id="agentDialog"><form id="agentForm"><div class="dialog-head"><div><p class="eyebrow">AGENT PROTOCOL 1.0</p><h2>Register external agent</h2></div><button type="button" class="icon-button close" data-close="agentDialog">×</button></div><div class="form-row"><label>Name<input name="name" required value="remote-triage-agent"></label><label>Version<input name="version" required value="1.0.0"></label></div><div class="form-row"><label>Capability<select name="capability"><option>triage</option><option>investigation</option><option>correlation</option><option>threat_intel</option><option>response</option></select></label><label>Transport<select name="transport"><option>http</option><option>mcp</option><option>grpc</option></select></label></div><label>Execution endpoint<input name="endpoint" required value="http://127.0.0.1:8120/execute"></label><label>Health endpoint<input name="health_endpoint" value="http://127.0.0.1:8120/health"></label><label>Data scopes<input name="scopes" value="fabric:read,threat_intel:read"></label><div class="dialog-actions"><button type="button" class="button secondary" data-close="agentDialog">Cancel</button><button class="button primary">Register and issue key</button></div></form></dialog>
 
   <dialog id="dispatchDialog"><form id="dispatchForm"><div class="dialog-head"><div><p class="eyebrow">CAPABILITY DISPATCH</p><h2>Send work to an agent</h2></div><button type="button" class="icon-button close" data-close="dispatchDialog">×</button></div><label>Capability<input name="capability" required value="triage"></label><div class="form-row"><label>Event ID<input name="event_id" required value="manual-alert-001"></label><label>Severity<select name="severity"><option>high</option><option>critical</option><option>medium</option><option>low</option></select></label></div><label>Event title<input name="title" value="Suspicious control-plane activity"></label><label>Idempotency key<input name="idempotency_key" value="manual-alert-001:triage:v1"></label><label class="check"><input name="asynchronous" type="checkbox" checked> Queue through distributed worker when configured</label><div class="dialog-actions"><button type="button" class="button secondary" data-close="dispatchDialog">Cancel</button><button class="button primary">Dispatch work</button></div></form></dialog>
 
   <dialog id="credentialDialog"><div class="credential"><p class="eyebrow">ONE-TIME CREDENTIAL</p><h2>Agent identity created</h2><p>Store this key in the agent’s secret manager. ASH will not show it again.</p><code id="credentialValue"></code><button class="button primary full" data-close="credentialDialog">I have stored the key</button></div></dialog>
+  <dialog id="caseDialog" aria-labelledby="caseDetailTitle"><div class="detail-shell"><div class="dialog-head"><div><p class="eyebrow">INVESTIGATION WORKSPACE</p><h2 id="caseDetailTitle">Case details</h2></div><button class="icon-button" aria-label="Close case details" data-close="caseDialog">×</button></div><div id="caseDetail"></div></div></dialog>
   <div class="toast" id="toast" role="status"></div>
   <script src="/assets/app.js"></script>
 </body>

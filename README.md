@@ -265,3 +265,23 @@ tests/                     unit, API, governance, contract and runtime tests
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE).
+
+
+### Operator console
+
+Open `/` on the running ASH server and sign in with an API key or user account.
+The responsive console includes case search and status filters, case evidence,
+governed triage execution, JSON evidence export, external-agent registration and
+routing, invocation history, approval decisions, and audit verification.
+
+The workspace refreshes every 30 seconds while visible. Restricted or unavailable
+endpoints are disclosed in a banner; failed sessions return to sign-in. Execution
+success uses completed versus failed invocations, and shows no percentage until
+terminal executions exist. Case statistics describe the latest 200 loaded cases,
+not an unbounded global total. Security operations remain enforced by server RBAC.
+Use Sign out to remove the browser session credential. Demo models and in-memory
+connectors simulate security actions; configure real integrations before deployment.
+
+Static console files are shipped inside the Python wheel. CI checks the container's
+health, readiness, console page, and JavaScript asset, alongside Python 3.11/3.12
+coverage tests and PostgreSQL integration.

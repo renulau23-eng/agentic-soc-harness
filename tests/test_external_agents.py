@@ -15,8 +15,7 @@ def _registration(endpoint: str = "http://agent.test/execute") -> dict:
         "endpoint": endpoint,
         "health_endpoint": "http://agent.test/health",
         "scopes": ["fabric:read", "threat_intel:read"],
-        "limits": {"timeout_seconds": 2, "max_concurrency": 2, "failure_threshold": 2,
-                   "recovery_seconds": 5},
+        "limits": {"timeout_seconds": 2, "max_concurrency": 2, "failure_threshold": 2, "recovery_seconds": 5},
     }
 
 
@@ -32,9 +31,7 @@ def test_registration_discovery_rotation_and_rbac(client):
     agent_id = body["agent"]["id"]
     assert client.get("/api/v1/external-agents?capability=triage", headers=viewer).json()[0]["id"] == agent_id
 
-    updated = client.patch(
-        f"/api/v1/external-agents/{agent_id}", headers=admin, json={"enabled": False}
-    )
+    updated = client.patch(f"/api/v1/external-agents/{agent_id}", headers=admin, json={"enabled": False})
     assert updated.json()["status"] == "disabled"
     rotated = client.post(f"/api/v1/external-agents/{agent_id}/credentials", headers=admin)
     assert rotated.status_code == 200 and rotated.json()["api_key"] != body["api_key"]
@@ -49,8 +46,14 @@ def test_dispatch_idempotency_and_owned_callback(client, harness, monkeypatch):
         payload = __import__("json").loads(request.content)
         return httpx.Response(
             200,
-            json={"protocol_version": "1.0", "invocation_id": payload["invocation_id"],
-                  "status": "accepted", "output": {}, "decisions": [], "metrics": {}},
+            json={
+                "protocol_version": "1.0",
+                "invocation_id": payload["invocation_id"],
+                "status": "accepted",
+                "output": {},
+                "decisions": [],
+                "metrics": {},
+            },
         )
 
     monkeypatch.setattr(
@@ -58,8 +61,12 @@ def test_dispatch_idempotency_and_owned_callback(client, harness, monkeypatch):
         "_client",
         lambda _agent: httpx.Client(transport=httpx.MockTransport(handler)),
     )
-    dispatch = {"capability": "triage", "event": {"severity": "high"},
-                "idempotency_key": "alert-42", "asynchronous": False}
+    dispatch = {
+        "capability": "triage",
+        "event": {"severity": "high"},
+        "idempotency_key": "alert-42",
+        "asynchronous": False,
+    }
     first = client.post("/api/v1/external-agent-dispatch", headers=admin, json=dispatch)
     assert first.status_code == 202, first.text
     invocation_id = first.json()[0]["id"]
@@ -73,11 +80,14 @@ def test_dispatch_idempotency_and_owned_callback(client, harness, monkeypatch):
         json=result.model_dump(mode="json"),
     )
     assert callback.status_code == 200 and callback.json()["result"]["output"]["verdict"] == "malicious"
-    assert client.post(
-        f"/api/v1/external-agent-invocations/{invocation_id}/callback",
-        headers={"X-Agent-Key": "wrong"},
-        json=result.model_dump(mode="json"),
-    ).status_code == 401
+    assert (
+        client.post(
+            f"/api/v1/external-agent-invocations/{invocation_id}/callback",
+            headers={"X-Agent-Key": "wrong"},
+            json=result.model_dump(mode="json"),
+        ).status_code
+        == 401
+    )
 
 
 def test_protocol_major_version_rejected(client):
