@@ -4,10 +4,12 @@
 # annotation objects for the locally-defined dependency alias to resolve.
 
 from collections.abc import Callable
+from pathlib import Path
 from typing import Annotated, Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, Response
-from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from ash import __version__
@@ -85,6 +87,12 @@ def create_app(harness: Harness | None = None, settings: Settings | None = None)
         description="Model-agnostic, governance-first runtime for security agents.",
     )
     app.state.harness = hz
+    static_dir = Path(__file__).parent / "static"
+    app.mount("/assets", StaticFiles(directory=static_dir), name="assets")
+
+    @app.get("/", include_in_schema=False)
+    def operator_console() -> FileResponse:
+        return FileResponse(static_dir / "index.html")
 
     # ---- auth dependency ------------------------------------------------ #
     def current_principal(

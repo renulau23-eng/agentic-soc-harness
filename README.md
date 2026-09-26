@@ -6,7 +6,7 @@ This revision turns ASH into an agent plug-in runtime. An external triage, inves
 
 | Area | Implementation |
 |---|---|
-| Control plane | FastAPI, versioned REST contracts, OpenAPI at `/docs` |
+| Control plane | Enterprise operator console at `/`, FastAPI contracts and OpenAPI at `/docs` |
 | Persistence | SQLAlchemy with SQLite for development and PostgreSQL for production |
 | Messaging | Redis Streams workers, retries, dead-letter stream, SQL source of truth |
 | Agent protocols | Native Python, HTTP JSON, MCP `tools/call`, unary gRPC |
@@ -79,7 +79,9 @@ cp .env.example .env
 ash serve --port 8080
 ```
 
-Open `http://localhost:8080/docs`. Development defaults to SQLite and inline external-agent execution. The offline model provider requires no GPU or external API.
+Open `http://localhost:8080` for the operator console. The developer API is at `http://localhost:8080/docs`. Development defaults to SQLite and inline external-agent execution. The offline model provider requires no GPU or external API.
+
+The console is backed entirely by live APIs: persisted investigations, approval decisions, external-agent registration and enablement, health probes, capability routes, distributed invocations, audit verification, manual alert ingestion, and work dispatch. It contains no mock dashboard feed.
 
 ```bash
 python -m scripts.demo

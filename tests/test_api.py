@@ -14,6 +14,10 @@ ALERT = {
 
 
 def test_health_and_metrics_public(client):
+    console = client.get("/")
+    assert console.status_code == 200 and "Agentic SOC control plane" in console.text
+    assert client.get("/assets/app.css").status_code == 200
+    assert client.get("/assets/app.js").status_code == 200
     assert client.get("/health").json()["ok"] is True
     r = client.get("/ready")
     assert r.status_code == 200 and r.json()["database"] is True
