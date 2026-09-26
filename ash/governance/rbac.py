@@ -25,6 +25,9 @@ P_APPROVALS_DECIDE = "approvals:decide"
 P_AUDIT_READ = "audit:read"
 P_AUDIT_VERIFY = "audit:verify"
 P_ADMIN = "admin:*"
+P_EXTERNAL_AGENTS_READ = "external_agents:read"
+P_EXTERNAL_AGENTS_WRITE = "external_agents:write"
+P_EXTERNAL_AGENTS_RUN = "external_agents:run"
 
 DEFAULT_ROLES: dict[str, set[str]] = {
     "viewer": {P_AGENTS_READ, P_TOOLS_READ, P_CASES_READ, P_APPROVALS_READ},
@@ -73,6 +76,9 @@ DEFAULT_ROLES: dict[str, set[str]] = {
         P_ALERTS_INGEST,
         "tools:execute:low",
         "tools:execute:medium",
+        P_EXTERNAL_AGENTS_READ,
+        P_EXTERNAL_AGENTS_WRITE,
+        P_EXTERNAL_AGENTS_RUN,
     },
     "auditor": {P_AGENTS_READ, P_TOOLS_READ, P_CASES_READ, P_APPROVALS_READ, P_AUDIT_READ, P_AUDIT_VERIFY},
     "service": {
@@ -85,6 +91,9 @@ DEFAULT_ROLES: dict[str, set[str]] = {
     },
     "admin": {P_ADMIN},
 }
+
+DEFAULT_ROLES["soc_lead"].update({P_EXTERNAL_AGENTS_READ, P_EXTERNAL_AGENTS_RUN})
+DEFAULT_ROLES["viewer"].add(P_EXTERNAL_AGENTS_READ)
 
 
 class RBAC:

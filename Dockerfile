@@ -14,7 +14,7 @@ COPY pyproject.toml README.md ./
 COPY ash ./ash
 COPY scripts ./scripts
 COPY config ./config
-RUN pip install --upgrade pip && pip install ".[postgres]"
+RUN pip install --upgrade pip && pip install ".[production]"
 
 # ---- runtime image: non-root, minimal
 FROM base AS runtime

@@ -15,8 +15,10 @@ import time
 from typing import Any
 
 from ash.agents.base import RunContext
+from ash.agents.external import ExternalAgentRuntime
 from ash.agents.registry import AgentRegistry
 from ash.agents.soc import soc_agents
+from ash.broker import create_broker
 from ash.config import Settings, get_settings
 from ash.connectors.base import Connectors
 from ash.connectors.memory import memory_connectors
@@ -106,6 +108,8 @@ class Harness:
         self.guardrails = guardrails
         self.auth = auth
         self.ratelimiter = RateLimiter(settings.rate_limit_per_minute)
+        self.external_agents = ExternalAgentRuntime(db, settings)
+        self.broker = create_broker(settings.broker_url)
         self._run_locks: dict[str, threading.Lock] = {}
         self._locks_guard = threading.Lock()
 

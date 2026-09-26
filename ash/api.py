@@ -11,6 +11,14 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from pydantic import BaseModel, Field
 
 from ash import __version__
+from ash.agents.external import (
+    AgentPatch,
+    AgentRegistrationRequest,
+    AgentRoute,
+    CallbackResult,
+    DispatchRequest,
+    external_row,
+)
 from ash.config import Settings, get_settings
 from ash.core.errors import (
     AuthenticationError,
@@ -174,6 +182,113 @@ def create_app(harness: Harness | None = None, settings: Settings | None = None)
             name: {"provider": p.provider, "model": p.model, "reasoning": p.reasoning}
             for name, p in hz.router.profiles.items()
         }
+
+    # ---- external agent plug-in runtime ------------------------------- #
+    @app.post("/api/v1/external-agents", status_code=201, tags=["external agents"])
+    def register_external_agent(body: AgentRegistrationRequest, principal: P) -> dict[str, Any]:
+        hz.rbac.require(principal, "external_agents:write")
+        agent, api_key = hz.external_agents.registry.register(body)
+        hz.audit.record(
+            actor=principal.id,
+            action="external_agent.registered",
+            target=agent.id,
+            detail={"name": agent.name, "version": agent.version, "capabilities": agent.capabilities},
+        )
+        return {"agent": external_row(agent), "api_key": api_key,
+                "warning": "Store this credential now. It cannot be recovered."}
+
+    @app.get("/api/v1/external-agents", tags=["external agents"])
+    def discover_external_agents(principal: P, capability: str | None = None) -> list[dict[str, Any]]:
+        hz.rbac.require(principal, "external_agents:read")
+        return [external_row(a) for a in hz.external_agents.registry.list(capability)]
+
+    @app.get("/api/v1/external-agents/{agent_id}", tags=["external agents"])
+    def get_external_agent(agent_id: str, principal: P) -> dict[str, Any]:
+        hz.rbac.require(principal, "external_agents:read")
+        return external_row(hz.external_agents.registry.get(agent_id))
+
+    @app.patch("/api/v1/external-agents/{agent_id}", tags=["external agents"])
+    def configure_external_agent(agent_id: str, body: AgentPatch, principal: P) -> dict[str, Any]:
+        hz.rbac.require(principal, "external_agents:write")
+        agent = hz.external_agents.registry.patch(agent_id, body)
+        hz.audit.record(actor=principal.id, action="external_agent.configured", target=agent_id,
+                        detail={"changed": sorted(body.model_fields_set)})
+        return external_row(agent)
+
+    @app.post("/api/v1/external-agents/{agent_id}/credentials", tags=["external agents"])
+    def rotate_external_agent_credential(agent_id: str, principal: P) -> dict[str, Any]:
+        hz.rbac.require(principal, "external_agents:write")
+        api_key = hz.external_agents.registry.rotate_credential(agent_id)
+        hz.audit.record(actor=principal.id, action="external_agent.credential_rotated", target=agent_id)
+        return {"agent_id": agent_id, "api_key": api_key,
+                "warning": "Previous credentials were revoked. Store this credential now."}
+
+    @app.post("/api/v1/external-agents/{agent_id}/health", tags=["external agents"])
+    def probe_external_agent(agent_id: str, principal: P) -> dict[str, Any]:
+        hz.rbac.require(principal, "external_agents:write")
+        return external_row(hz.external_agents.health(agent_id))
+
+    @app.get("/api/v1/external-agent-routes", tags=["external agents"])
+    def external_agent_routes(principal: P) -> list[dict[str, Any]]:
+        hz.rbac.require(principal, "external_agents:read")
+        return [external_row(r) for r in hz.external_agents.registry.routes()]
+
+    @app.put("/api/v1/external-agent-routes/{capability}", tags=["external agents"])
+    def configure_external_agent_route(capability: str, body: AgentRoute, principal: P) -> dict[str, Any]:
+        hz.rbac.require(principal, "external_agents:write")
+        if body.capability != capability:
+            raise ValueError("route capability must match the path")
+        route = hz.external_agents.registry.save_route(body)
+        hz.audit.record(actor=principal.id, action="external_agent.route_configured", target=capability,
+                        detail={"agent_ids": body.agent_ids, "strategy": body.strategy})
+        return external_row(route)
+
+    @app.post("/api/v1/external-agent-dispatch", status_code=202, tags=["external agents"])
+    def dispatch_external_agent(body: DispatchRequest, principal: P) -> list[dict[str, Any]]:
+        hz.rbac.require(principal, "external_agents:run")
+        invocations = hz.external_agents.create_invocations(body)
+        output = []
+        for invocation in invocations:
+            if body.asynchronous and hz.broker.distributed:
+                hz.broker.publish(invocation.id)
+            else:
+                invocation = hz.external_agents.execute(invocation.id)
+            output.append(external_row(invocation))
+            hz.audit.record(actor=principal.id, action="external_agent.dispatched", target=invocation.id,
+                            run_id=body.run_id, detail={"capability": body.capability,
+                                                       "agent_id": invocation.agent_id})
+        return output
+
+    @app.get("/api/v1/external-agent-invocations", tags=["external agents"])
+    def external_agent_invocations(
+        principal: P, limit: Annotated[int, Query(ge=1, le=500)] = 100
+    ) -> list[dict[str, Any]]:
+        hz.rbac.require(principal, "external_agents:read")
+        return [external_row(i) for i in hz.external_agents.list_invocations(limit)]
+
+    @app.get("/api/v1/external-agent-invocations/{invocation_id}", tags=["external agents"])
+    def external_agent_invocation(invocation_id: str, principal: P) -> dict[str, Any]:
+        hz.rbac.require(principal, "external_agents:read")
+        return external_row(hz.external_agents.get_invocation(invocation_id))
+
+    @app.post("/api/v1/external-agent-invocations/{invocation_id}/callback", tags=["external agents"])
+    def external_agent_callback(
+        invocation_id: str,
+        body: CallbackResult,
+        x_agent_key: Annotated[str | None, Header()] = None,
+    ) -> dict[str, Any]:
+        if not x_agent_key:
+            raise HTTPException(status_code=401, detail="missing X-Agent-Key")
+        credential = hz.external_agents.registry.authenticate(x_agent_key)
+        if not credential or "agent:callback" not in credential.scopes:
+            raise HTTPException(status_code=401, detail="invalid agent credential")
+        try:
+            row = hz.external_agents.callback(invocation_id, body, credential.agent_id)
+        except PermissionError as exc:
+            raise HTTPException(status_code=403, detail=str(exc)) from exc
+        hz.audit.record(actor=f"agent:{credential.agent_id}", action="external_agent.callback",
+                        target=invocation_id, run_id=row.run_id, detail={"status": row.status})
+        return external_row(row)
 
     # ---- alerts & cases ------------------------------------------------- #
     @app.post("/api/v1/alerts", status_code=201, tags=["cases"])

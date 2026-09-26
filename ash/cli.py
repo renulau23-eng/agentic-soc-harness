@@ -39,6 +39,13 @@ def cmd_demo(args: argparse.Namespace) -> int:
     return run_demo(verbose=not args.quiet)
 
 
+def cmd_worker(_: argparse.Namespace) -> int:
+    from ash.worker import run
+
+    run()
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="ash", description=f"Agentic SOC Harness {__version__}")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -58,6 +65,9 @@ def main(argv: list[str] | None = None) -> int:
     d = sub.add_parser("demo", help="run an incident end to end with the offline playbook model")
     d.add_argument("--quiet", action="store_true")
     d.set_defaults(fn=cmd_demo)
+
+    w = sub.add_parser("worker", help="run a Redis external-agent worker")
+    w.set_defaults(fn=cmd_worker)
 
     args = p.parse_args(argv)
     return int(args.fn(args))

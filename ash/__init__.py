@@ -6,4 +6,4 @@ execution, RBAC, human-in-the-loop approvals, tamper-evident audit, case state
 and observability.
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"

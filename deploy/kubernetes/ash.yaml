@@ -1,0 +1,99 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ash-config
+data:
+  ASH_ENVIRONMENT: production
+  ASH_LOG_JSON: "true"
+  ASH_DATABASE_URL: postgresql+psycopg://ash@postgresql/ash
+  ASH_BROKER_URL: redis://redis:6379/0
+  ASH_PUBLIC_BASE_URL: https://ash.example.com/api/v1
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ash-api
+spec:
+  replicas: 3
+  selector:
+    matchLabels: {app: ash-api}
+  template:
+    metadata:
+      labels: {app: ash-api}
+    spec:
+      serviceAccountName: ash
+      containers:
+        - name: api
+          image: ghcr.io/renulau23-eng/agentic-soc-harness:latest
+          args: ["ash", "serve", "--host", "0.0.0.0", "--port", "8080"]
+          envFrom:
+            - configMapRef: {name: ash-config}
+            - secretRef: {name: ash-secrets}
+          ports: [{containerPort: 8080}]
+          readinessProbe: {httpGet: {path: /ready, port: 8080}, initialDelaySeconds: 5}
+          livenessProbe: {httpGet: {path: /health, port: 8080}, initialDelaySeconds: 15}
+          resources:
+            requests: {cpu: 250m, memory: 256Mi}
+            limits: {cpu: "2", memory: 1Gi}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, runAsNonRoot: true}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ash-worker
+spec:
+  replicas: 3
+  selector:
+    matchLabels: {app: ash-worker}
+  template:
+    metadata:
+      labels: {app: ash-worker}
+    spec:
+      serviceAccountName: ash
+      containers:
+        - name: worker
+          image: ghcr.io/renulau23-eng/agentic-soc-harness:latest
+          args: ["ash", "worker"]
+          envFrom:
+            - configMapRef: {name: ash-config}
+            - secretRef: {name: ash-secrets}
+          resources:
+            requests: {cpu: 250m, memory: 256Mi}
+            limits: {cpu: "2", memory: 1Gi}
+          securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, runAsNonRoot: true}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ash-api
+spec:
+  selector: {app: ash-api}
+  ports: [{port: 80, targetPort: 8080}]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ash
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ash-api
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels: {app: ash-api}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ash-worker
+spec:
+  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: ash-worker}
+  minReplicas: 3
+  maxReplicas: 20
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: {type: Utilization, averageUtilization: 70}

@@ -66,6 +66,14 @@ class Settings(BaseSettings):
     default_model_profile: str = "reasoning"
     models_file: str | None = None  # YAML list of profiles
 
+    # --- external agent runtime
+    public_base_url: str = "http://localhost:8080/api/v1"
+    broker_url: str | None = None  # redis://... enables distributed workers
+    worker_group: str = "ash-external-agents"
+    external_agent_max_attempts: int = 3
+    external_agent_retry_base_seconds: float = 1.0
+    secrets_dir: str = "/run/secrets"
+
     def is_production(self) -> bool:
         return self.environment.lower() == "production"
 

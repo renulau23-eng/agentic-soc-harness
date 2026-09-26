@@ -17,10 +17,23 @@ services:
       timeout: 3s
       retries: 20
 
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   api:
     build: .
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     environment:
       ASH_ENVIRONMENT: production
@@ -36,9 +49,29 @@ services:
       ASH_MODEL_REASONING_BASE_URL: ${ASH_MODEL_REASONING_BASE_URL:-}
       ASH_MODEL_REASONING_API_KEY: ${ASH_MODEL_REASONING_API_KEY:-}
       ASH_GUARDRAIL_WEBHOOK_URL: ${ASH_GUARDRAIL_WEBHOOK_URL:-}
+      ASH_BROKER_URL: redis://redis:6379/0
+      ASH_PUBLIC_BASE_URL: ${ASH_PUBLIC_BASE_URL:-http://localhost:8080/api/v1}
     ports:
       - "8080:8080"
     restart: unless-stopped
 
+  worker:
+    build: .
+    command: ["ash", "worker"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      ASH_ENVIRONMENT: production
+      ASH_DATABASE_URL: postgresql+psycopg://ash:${POSTGRES_PASSWORD:-ash}@postgres:5432/ash
+      ASH_JWT_SECRET: ${ASH_JWT_SECRET:?set ASH_JWT_SECRET (32+ random bytes)}
+      ASH_BROKER_URL: redis://redis:6379/0
+      ASH_PUBLIC_BASE_URL: ${ASH_PUBLIC_BASE_URL:-http://localhost:8080/api/v1}
+      ASH_MODEL_REASONING_PROVIDER: ${ASH_MODEL_REASONING_PROVIDER:-mock}
+    restart: unless-stopped
+
 volumes:
   pgdata:
+  redisdata:
