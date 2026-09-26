@@ -1705,3 +1705,13 @@ button:disabled{
 }
 .approval-card details{margin-top:12px;font-size:10px;color:var(--muted)}
 .approval-card summary{cursor:pointer}
+/* Keep tablet layouts readable when navigation occupies part of the viewport. */
+@media (min-width: 761px) and (max-width: 1100px) {
+  .orbit { display: none; }
+  .status-strip { grid-template-columns: 1fr 1fr; height: auto; padding-top: 8px; padding-bottom: 8px; gap: 10px; }
+  .top-actions { gap: 6px; }
+  .top-actions > small, .top-actions .live { display: none; }
+  .topbar { padding: 0 22px; }
+  .topbar h1 { font-size: 20px; }
+  .button { white-space: nowrap; }
+}
